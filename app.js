@@ -35,14 +35,14 @@ const parseNumberFireOdds = (eventArr) => {
         for(let j=0;j<eventArr[i].competitions.length;j++) {
 	    for(let k=0;k<eventArr[i].competitions[j].odds.length;k++) {
 		if(eventArr[i].competitions[j].odds[k].provider.name == "numberfire") {
-		    const odd = eventArr[i].competitions[j].odds[k];
-		    odd.teams = [];
+		    const odds = eventArr[i].competitions[j].odds[k];
+		    odds.teams = [];
 		    for(let l=0;l<eventArr[i].competitions[j].competitors.length;l++) {
 			const team = eventArr[i].competitions[j].competitors[l].team;
 			team.homeAway = eventArr[i].competitions[j].competitors[l].homeAway;
-			odd.teams.push(team);
+			odds.teams.push(team);
 		    }
-                    nfOdds.push(odd);
+                    nfOdds.push(odds);
 		}
 	    }
 	}
@@ -50,14 +50,22 @@ const parseNumberFireOdds = (eventArr) => {
     return nfOdds;
 };
 
+// works as of 06/04/2019
+const printBets = (nfOdds) => {
+    for(let i=0;i<nfOdds.length;i++) {
+        if(nfOdds[i].awayTeamOdds.moneyLineReturn > nfOdds[i].homeTeamOdds.moneyLineReturn && nfOdds[i].awayTeamOdds.moneyLineReturn > 0.01) {
+            console.log("Bet " + nfOdds[i].awayTeamOdds.team.abbreviation + " over " + nfOdds[i].homeTeamOdds.team.abbreviation + " at " + nfOdds[i].awayTeamOdds.moneyLine);
+        } else if (nfOdds[i].homeTeamOdds.moneyLineReturn > 0.01) {
+            console.log("Bet " + nfOdds[i].homeTeamOdds.team.abbreviation + " over " + nfOdds[i].awayTeamOdds.team.abbreviation + " at " + nfOdds[i].homeTeamOdds.moneyLine);
+        }
+    }
+};
+
 getHTML(dataUrl)
 .then(html => {
     const eventArr = parseEventData(html);
     const nfOdds = parseNumberFireOdds(eventArr);
-
-    console.log(nfOdds);
-    console.log(nfOdds[0].teams);
-    // next: calculate which odds are best and keep a tally of how they do over time
+    printBets(nfOdds);
 
     /* toCSV([{email: "whatever@example.com", favNum: 1}, {email: "yo@example.com", favNum: 2}])
     .then(() => {

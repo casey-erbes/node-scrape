@@ -3,7 +3,8 @@ const rp = require('request-promise');
 const otcsv = require('objects-to-csv');
 const cheerio = require('cheerio');
 
-const dataUrl = 'http://www.espn.com/mlb/scoreboard';
+// const dataUrl = 'http://www.espn.com/mlb/scoreboard';
+const dataUrl = 'https://www.espn.com/mlb/scoreboard/_/date/20190605';
 const dataRegex = /<script>.*scoreboardData[\s]*=[\s]*({.*};?).*<\/script>/g;
 
 const getHTML = async (url) => {
@@ -33,6 +34,9 @@ const parseNumberFireOdds = (eventArr) => {
     const nfOdds = [];
     for(let i=0;i<eventArr.length;i++) {
         for(let j=0;j<eventArr[i].competitions.length;j++) {
+	    if(!eventArr[i].competitions[j].odds) {
+		continue
+	    }
 	    for(let k=0;k<eventArr[i].competitions[j].odds.length;k++) {
 		if(eventArr[i].competitions[j].odds[k].provider.name == "numberfire") {
 		    const odds = eventArr[i].competitions[j].odds[k];
@@ -54,9 +58,9 @@ const parseNumberFireOdds = (eventArr) => {
 const printBets = (nfOdds) => {
     for(let i=0;i<nfOdds.length;i++) {
         if(nfOdds[i].awayTeamOdds.moneyLineReturn > nfOdds[i].homeTeamOdds.moneyLineReturn && nfOdds[i].awayTeamOdds.moneyLineReturn > 0.01) {
-            console.log("Bet " + nfOdds[i].awayTeamOdds.team.abbreviation + " over " + nfOdds[i].homeTeamOdds.team.abbreviation + " at " + nfOdds[i].awayTeamOdds.moneyLine);
+            console.log("Bet " + nfOdds[i].awayTeamOdds.team.abbreviation + " over " + nfOdds[i].homeTeamOdds.team.abbreviation + " at " + nfOdds[i].awayTeamOdds.moneyLine + " (" + nfOdds[i].awayTeamOdds.moneyLineReturn + ")");
         } else if (nfOdds[i].homeTeamOdds.moneyLineReturn > 0.01) {
-            console.log("Bet " + nfOdds[i].homeTeamOdds.team.abbreviation + " over " + nfOdds[i].awayTeamOdds.team.abbreviation + " at " + nfOdds[i].homeTeamOdds.moneyLine);
+            console.log("Bet " + nfOdds[i].homeTeamOdds.team.abbreviation + " over " + nfOdds[i].awayTeamOdds.team.abbreviation + " at " + nfOdds[i].homeTeamOdds.moneyLine + " (" + nfOdds[i].homeTeamOdds.moneyLineReturn + ")");
         }
     }
 };

@@ -1,20 +1,17 @@
 'use-strict';
 const rp = require('request-promise');
-const otcsv = require('objects-to-csv');
-const cheerio = require('cheerio');
 
-// const dataUrl = 'http://www.espn.com/mlb/scoreboard';
-const dataUrl = 'https://www.espn.com/mlb/scoreboard/_/date/20190918';
+// various online odds sources
+// const dataURL = 'https://projects.fivethirtyeight.com/2019-nfl-predictions/games';
+// const dataURL = 'https://www.numberfire.com/nfl/games/2019/week-5';
+// const dataURL = 'https://www.espn.com/nfl/scoreboard';
+// const dataURL = 'https://www.espn.com/mlb/scoreboard';
+const dataURL = 'https://www.espn.com/mlb/scoreboard/_/date/20191017';
 const dataRegex = /<script>.*scoreboardData[\s]*=[\s]*({.*};?).*<\/script>/g;
 const tgt = .05;
 
 const getHTML = async (url) => {
     return rp(url);
-};
-
-const toCSV = async (arr) => {
-    const csv = new otcsv(arr);
-    return csv.toDisk('output.csv');
 };
 
 // works as of 09/18/2019
@@ -54,7 +51,7 @@ const printBets = (nfOdds) => {
     for(let i=0;i<nfOdds.length;i++) {
 	let awayMagicNum = 100*(tgt + 1 - nfOdds[i].awayTeamOdds.winPercentage/100)/(nfOdds[i].awayTeamOdds.winPercentage/100);
 	if (awayMagicNum < 100) {
-	    awayMagicNum = 10000/awayMagicNum;
+	    awayMagicNum = -10000/awayMagicNum;
 	}
 	awayMagicNum = Math.ceil(awayMagicNum);
 	console.log("Bet " + nfOdds[i].awayTeamOdds.team.abbreviation + " over " + nfOdds[i].homeTeamOdds.team.abbreviation + " if moneyline is over " + awayMagicNum);
@@ -68,7 +65,7 @@ const printBets = (nfOdds) => {
     }
 };
 
-getHTML(dataUrl)
+getHTML(dataURL)
 .then(html => {
     const eventArr = parseEventData(html);
     const nfOdds = parseNumberFireOdds(eventArr);

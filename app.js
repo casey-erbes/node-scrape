@@ -12,10 +12,11 @@ const $ = require('jquery')(new jsdom.JSDOM().window);
 
 // 538
 // const dataURL = 'https://projects.fivethirtyeight.com/2019-nfl-predictions/games';
-const dataURL = 'https://projects.fivethirtyeight.com/2020-nba-predictions/games';
+const f38DataURL = 'https://projects.fivethirtyeight.com/2020-nba-predictions/games';
 
 // NumberFire
 // const nfDataURL = 'https://www.numberfire.com/nfl/games';
+const nfDataURL = 'https://www.numberfire.com/nba/games';
 
 //---------------------------------------------------------------------------
 // Globals
@@ -25,20 +26,6 @@ const tgt = .05;
 const sleep = (ms) => {
   return new Promise(resolve => setTimeout(resolve, ms));
 }
-
-const getHTML = async (url) => {
-    const browser = await puppeteer.launch();
-    const page = await browser.newPage();
-    await page.goto(url);
-
-    // click button toggle for ELO predictions
-    // await page.$eval('input#r2', el => el.click());
-    // await sleep(5000); // give time to propagate ELO predictions
-
-    const html = await page.evaluate(() => document.body.innerHTML);
-    await browser.close();
-    return html;
-};
 
 //---------------------------------------------------------------------------
 // ESPN
@@ -111,6 +98,23 @@ const printESPNBets = (odds) => {
 // 538
 
 // works as of 01/28/2019
+const get538HTML = async (url, elo) => {
+    const browser = await puppeteer.launch();
+    const page = await browser.newPage();
+    await page.goto(url);
+
+    if(elo) {
+        // click button toggle for ELO predictions
+        await page.$eval('input#r2', el => el.click());
+        await sleep(5000); // give time to propagate ELO predictions
+    }
+
+    const html = await page.evaluate(() => document.body.innerHTML);
+    await browser.close();
+    return html;
+};
+
+// works as of 01/28/2019
 const parse538Data = (html) => {
     html = $(html);
 
@@ -168,7 +172,89 @@ const parse538Data = (html) => {
     return odds;
 };
 
-const print538Bets = (odds) => {
+//---------------------------------------------------------------------------
+// NumberFire
+
+const getNumberFireHTML = async (url) => {
+    const browser = await puppeteer.launch();
+    const page = await browser.newPage();
+    await page.goto(url);
+
+    const html = await page.evaluate(() => document.body.innerHTML);
+    await browser.close();
+    return html;
+};
+
+const parseNumberFireData = (html) => {
+    html = $(html);
+
+    sections = html.find('section');
+    let section;
+    for(let i=0;i<sections.length;i++) {
+        s = $(sections[i]);
+        if(s.hasClass("grid__two-col--main")) {
+            section = s;
+            break;
+        }
+    }
+
+    divs = section.find('div');
+    const odds = [];
+    for(let i=0;i<divs.length;i++) {
+        let div = $(divs[i]);
+	if(div.hasClass("game-indiv__game-header__score")) {
+            const matchup = {
+                awayTeam: {},
+                homeTeam: {}
+            };
+
+	    let innerDivs = div.find('div');
+	    for(let j=0;j<innerDivs.length;j++) {
+        	let innerDiv = $(innerDivs[j]);
+		if(innerDiv.hasClass('team__info')) {
+		    let spans = innerDiv.find('span');
+		    for(let k=0;k<spans.length;k++) {
+			let span = $(spans[k]);
+			if(span.hasClass('abbrev')) {
+                            if(matchup.awayTeam.abbrev == null) {
+                                matchup.awayTeam.abbrev = span.text();
+                            } else {
+                                matchup.homeTeam.abbrev = span.text();
+                            }
+			} else if(span.hasClass('full')) {
+                            if(matchup.awayTeam.name == null) {
+                                matchup.awayTeam.name = span.text();
+                            } else {
+                                matchup.homeTeam.name = span.text();
+                            }
+			}
+		    }
+		} else if(innerDiv.hasClass('win-probability')) {
+		    let h4s = innerDiv.find('h4');
+		    for(let k=0;k<h4s.length;k++) {
+			let h4 = $(h4s[k]);
+			let abbrev = innerDiv.clone().children().remove().end().text().trim();
+			let pct = parseFloat("0." + h4.text().trim().replace(/\./g, ""))
+                        if(abbrev == matchup.awayTeam.abbrev) {
+			    matchup.awayTeam.pct = pct;
+			    matchup.homeTeam.pct = parseFloat((1-pct).toFixed(4));
+			} else {
+			    matchup.homeTeam.pct = pct;
+			    matchup.awayTeam.pct = parseFloat((1-pct).toFixed(4));
+			}
+		    }
+		}
+	    }
+            odds.push(matchup);
+	}
+    }
+
+    return odds;
+};
+
+//---------------------------------------------------------------------------
+
+const printBets = (odds) => {
     for(let i=0;i<odds.length;i++) {
         let awayMagicNum = 100*(tgt + 1 - odds[i].awayTeam.pct)/(odds[i].awayTeam.pct);
         if (awayMagicNum < 100) {
@@ -187,10 +273,26 @@ const print538Bets = (odds) => {
 
 //---------------------------------------------------------------------------
 
-getHTML(dataURL)
+// get 538 data with RAPTOR button selected
+get538HTML(f38DataURL, false)
 .then(html => {
-    // const odds = parseESPNData(html);
-    // printESPNBets(odds);
     odds = parse538Data(html);
-    print538Bets(odds);
+    console.log("\nRAPTOR Formulations:\n");
+    printBets(odds);
+});
+
+// get 538 data with ELO button selected
+get538HTML(f38DataURL, true)
+.then(html => {
+    odds = parse538Data(html);
+    console.log("\nELO Formulations:\n");
+    printBets(odds);
+});
+
+// get NumberFire data
+getNumberFireHTML(nfDataURL)
+.then(html => {
+    odds = parseNumberFireData(html);
+    console.log("\nNumberFire Formulations:\n");
+    printBets(odds);
 });
